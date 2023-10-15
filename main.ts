@@ -1,48 +1,7 @@
-/*scene.setBackgroundColor(8)
-game.setDialogFrame(img`
-    ..ccccc....333.....333...ccccc...
-    .c33b33c..39993...39993.c33b33c..
-    c3b33bb3c39999933399999c3bb33b3c.
-    c33b33b3c99111999991119c3b33b33c.
-    cb33b33bc91999199919991cb33b33bc.
-    c3b33bbbcb999991119999bcbbb33b3c.
-    c3bb3bbd1b111119991111b1dbb3bb3c.
-    .c33bbd1b11111111111111b1dbb33c..
-    ..cccc1b1111111111111111b1cccc...
-    .3991bb111111111111111111bb993...
-    3991991111111111111111111191993..
-    39919911111111111111111111991993.
-    39919911111111111111111111991993.
-    .3991911111111111111111111991993.
-    ..39919111111111111111111191993..
-    ..3991911111111111111111191993...
-    ..3991911111111111111111191993...
-    .39919111111111111111111191993...
-    3991991111111111111111111191993..
-    39919911111111111111111111991993.
-    39919911111111111111111111991993.
-    .3991911111111111111111111991993.
-    ..699bb111111111111111111bb1993..
-    ..cccc1b1111111111111111b1cccc...
-    .c33bbd1b11111111111111b1dbb33c..
-    c3bb3bbd1b111199911111b1dbb3bb3c.
-    c3b33bbbcb999911199999bcbbb33b3c.
-    cb33b33bc19991999199919cb33b33bc.
-    c33b33b3c91119999911199c3b33b33c.
-    c3b33bb3c99999333999993c3bb33b3c.
-    .c33b33c.39993...39993..c33b33c..
-    ..ccccc...333.....333....ccccc...
-    .................................
-    `)
-//game.showDialog("Hello", "Yes Sir?", "something");
-game.showLongText("Hello", DialogLayout.Bottom)
-//game.BaseDialog.resize();*/
-//let test = sprites.create(assets.image`myImage`);
-//test.image.fillRect(0, 0, test.width / 3, test.height / 3, 0);
-//test.image.drawPartial()
-scene.setBackgroundColor(0);
-//let sprit = sprites.create(assets.image`myImage`);
 
+scene.setBackgroundColor(0)
+
+let MAX_FRAME_UNIT = 12
 class NineSliceBox {
     image: Image;
     frame: Image;
@@ -84,8 +43,9 @@ class NineSliceBox {
         this.draw();
     }
 
-    update() {
+    update(drawCursor = true) {
         this.draw();
+        if (drawCursor) this.drawCursorRow();
     }
 
     protected calculateSlices() {
@@ -155,27 +115,206 @@ class NineSliceBox {
 
         this.image.drawTransparentImage(
             this.cursor,
-            offset + this.image.width - (this.unit * 1.5),
-            this.image.height - (this.unit * 1.5)
+            this.innerLeft + this.textAreaWidth() + this.unit + offset - this.cursor.width,
+            this.innerTop + this.unit + this.textAreaHeight() + 1 - this.cursorRowHeight()
         )
+    }
+
+    //
+    protected cursorRowHeight() {
+        return this.cursor.height + 1;
+    }
+
+    protected rowHeight() {
+        return this.font.charHeight + 1;
+    }
+
+    protected textAreaWidth() {
+        return this.image.width - ((this.innerLeft + Math.min(this.unit, 12)) << 1) - 2;
+    }
+
+    protected textAreaHeight() {
+        return this.image.height - ((this.innerTop + Math.min(this.unit, 12)) << 1) - 1;
+    }
+}
+class Dialog extends NineSliceBox {
+    chunks: string[][];
+    chunkIndex: number;
+
+    constructor(x: number, y: number, width: number, height: number, frame?: Image, font?: image.Font, cursor?: Image) {
+        super(x, y, width, height, frame, font, 15, cursor);
+
+        this.chunkIndex = 0;
+    }
+
+    update(drawCursor = true) {
+        this.drawTextCore();
+        if (drawCursor) this.drawCursorRow();
+    }
+
+    hasNext() {
+        if (!this.chunks || this.chunks.length === 0) return false;
+        return this.chunkIndex < this.chunks.length - 1;
+    }
+
+    hasPrev() {
+        if (!this.chunks || this.chunks.length === 0) return false;
+        return this.chunkIndex > 0;
+    }
+
+    nextPage() {
+        if (this.hasNext()) {
+            this.chunkIndex++;
+        }
+    }
+
+    prevPage() {
+        if (this.hasPrev()) {
+            this.chunkIndex--;
+        }
+    }
+
+    chunkText(str: string): string[][] {
+        const charactersPerRow = Math.floor(this.textAreaWidth() / this.font.charWidth);
+        const charactersPerCursorRow = Math.floor(charactersPerRow - (this.cursor.width / this.font.charWidth));
+        const rowsOfCharacters = Math.floor(this.textAreaHeight() / this.rowHeight());
+        const rowsWithCursor = Math.ceil(this.cursor.height / this.rowHeight());
+
+        let lineLengths: number[] = [];
+
+        for (let j = 0; j < rowsOfCharacters - rowsWithCursor; j++) lineLengths.push(charactersPerRow);
+        for (let k = 0; k < rowsWithCursor; k++) lineLengths.push(charactersPerCursorRow);
+
+        return this.breakIntoPages(str, lineLengths);
+    }
+
+    setText(rawString: string) {
+        this.setFont(image.getFontForText(rawString));
+        this.chunks = this.chunkText(rawString);
+        this.chunkIndex = 0;
+    }
+
+    drawTextCore() {
+        if (!this.chunks || this.chunks.length === 0) return;
+        const lines = this.chunks[this.chunkIndex];
+        const availableWidth = this.textAreaWidth();
+        const availableHeight = this.textAreaHeight();
+
+        const charactersPerRow2 = Math.floor(availableWidth / this.font.charWidth);
+        const rowsOfCharacters2 = Math.floor(availableHeight / this.rowHeight());
+
+        if (this.unit > MAX_FRAME_UNIT) this.draw();
+
+        const textLeft = 1 + this.innerLeft + Math.min(this.unit, MAX_FRAME_UNIT) + ((availableWidth - charactersPerRow2 * this.font.charWidth) >> 1);
+        const textTop = 1 + (this.image.height >> 1) - ((lines.length * this.rowHeight()) >> 1);
+
+        for (let row = 0; row < lines.length; row++) {
+            this.image.print(
+                lines[row],
+                textLeft,
+                textTop + row * this.rowHeight(),
+                this.textColor, this.font
+            )
+        }
+    }
+
+    protected setFont(font: image.Font) {
+        this.font = font;
+    }
+
+    breakIntoPages(text: string, lineLengths: number[]): string[][] {
+        const result: string[][] = [];
+
+        let currentPage: string[] = [];
+
+        let lastBreakLocation = 0;
+        let lastBreak = 0;
+        let line = 0;
+        let lineLength = lineLengths[line];
+
+        function nextLine() {
+            line++;
+            lineLength = lineLengths[line];
+        }
+
+        for (let index = 0; index < text.length; index++) {
+            if (text.charAt(index) === "\n") {
+                currentPage.push(this.formatLine(text.substr(lastBreak, index - lastBreak)));
+                index++;
+                lastBreak = index;
+                nextLine();
+            }
+            // Handle \\n in addition to \n because that's how it gets converted from blocks
+            else if (text.charAt(index) === "\\" && text.charAt(index + 1) === "n") {
+                currentPage.push(this.formatLine(text.substr(lastBreak, index - lastBreak)));
+                index += 2;
+                lastBreak = index
+                nextLine();
+            }
+            else if (this.isBreakCharacter(text.charCodeAt(index))) {
+                lastBreakLocation = index;
+            }
+
+            if (index - lastBreak === lineLength) {
+                if (lastBreakLocation === index || lastBreakLocation < lastBreak) {
+                    currentPage.push(this.formatLine(text.substr(lastBreak, lineLength)));
+                    lastBreak = index;
+                    nextLine();
+                }
+                else {
+                    currentPage.push(this.formatLine(text.substr(lastBreak, lastBreakLocation - lastBreak)));
+                    lastBreak = lastBreakLocation;
+                    nextLine();
+                }
+            }
+
+            if (line >= lineLengths.length) {
+                line = 0;
+                lineLength = lineLengths[line];
+                result.push(currentPage);
+                currentPage = [];
+            }
+        }
+
+         currentPage.push(this.formatLine(text.substr(lastBreak, text.length - lastBreak)));
+
+        if (currentPage.length > 1 || currentPage[0] !== "") {
+            result.push(currentPage);
+        }
+
+        return result;
+    }
+
+    formatLine(text: string) {
+        let l = 0;
+        while (text.charAt(l) === " ") l++;
+        return text.substr(l, text.length);
+    }
+
+    isBreakCharacter(charCode: number) {
+        return charCode <= 32 ||
+            (charCode >= 58 && charCode <= 64) ||
+            (charCode >= 91 && charCode <= 96) ||
+            (charCode >= 123 && charCode <= 126) ||
+            (charCode >= 19968 && charCode <= 40869) ||
+            charCode == 12290 ||
+            charCode == 65292;
     }
 }
 
-let dialog = new game.BaseDialog(50, 50);
-
-
+let dialog = new Dialog(0, 0, 100, 100, assets.image`myImage`);
 let nineSlice = new NineSliceBox(0, 0, 100, 100, assets.image`myImage`);
 
-let dialogs = new game.BaseDialog(screen.width, screen.height);
-//let tester = new Test(screen.width, screen.height);
-/*game.onUpdate(function() {
-    nineSlice.drawNineSlice();
-    console.log("Hello");
-})*/
-dialog.frame = assets.image`myImage`;
+
+let dem = [
+0,
+0,
+20,
+20
+]
+let pressed = [0, 0]
 dialog.update();
-let dem = [0, 0, 20, 20];
-let pressed = [0, 0];
+dialog.setText("a a a a a a a a a a a a a a a");
 scene.createRenderable(0, (target: Image, camera: scene.Camera) => {
     pressed = [Math.sign(controller.dx()) * pressed[0], Math.sign(controller.dx()) * pressed[1]];
     if (controller.A.isPressed()) {
@@ -186,7 +325,9 @@ scene.createRenderable(0, (target: Image, camera: scene.Camera) => {
         dem[3] += Math.floor(controller.dy());
     }
     //nineSlice.resize(dem[0], dem[1],assets.image`myImage`, undefined);
-    nineSlice.resize(dem[0], dem[1], dem[2], dem[3],assets.image`myImage1`);
-    target.drawTransparentImage(nineSlice.image, 0, 0);
-    game.showLongText
+    dialog.setText("Hello There!\n>Hello!<");
+    dialog.resize(dem[0], dem[1], dem[2], dem[3],assets.image`myImage2`);
+    dialog.update(false);
+    target.drawTransparentImage(dialog.image, 0, 0);
+    //game.showLongText
 });
