@@ -1,143 +1,229 @@
+scene.setBackgroundColor(0);
 
-scene.setBackgroundColor(0)
+namespace nineSlice {
+    export class NineSliceBox {
+        image: Image;
+        frame: Image;
+        nineSlice: Image[];
 
-let MAX_FRAME_UNIT = 12
-class NineSliceBox {
-    image: Image;
-    frame: Image;
-    cursor: Image;
-    nineSlice: Image[];
+        x1: number;
+        y1: number;
+        x2: number;
+        y2: number;
+        unit: number;
+        rows: number;
+        columns: number;
+        lerpProgress: number
 
-    x: number;
-    y: number;
-    unit: number;
-    rows: number;
-    columns: number;
-
-    innerLeft: number;
-    innerTop: number;
-    cursorCount: number;
-
-    font: image.Font;
-    textColor: number;
-
-    constructor(x: number, y: number, width: number, height: number, frame?: Image, font?: image.Font, textColour?: number, cursor?: Image) {
-        this.cursorCount = 0;
-        this.resize(x, y, width, height, frame, font, textColour, cursor);
-    }
-
-    resize(x: number, y: number, width: number, height: number, frame?: Image, font?: image.Font, textColour?: number, cursor?: Image) {
-        this.x = x; this.y = y;
-        this.frame = frame ||assets.image`defaultFrame`;
-        this.unit = Math.floor(this.frame.width / 3);
-        this.columns = Math.floor(width / this.unit);
-        this.rows = Math.floor(height / this.unit);
-        this.innerLeft = (width - (this.columns * this.unit)) >> 1;
-        this.innerTop = (height - (this.rows * this.unit)) >> 1;
-        this.image = image.create(this.x + width, this.y + height);
-        this.font = font || image.font8;
-        this.cursor = cursor ||assets.image`cursor`;
-        this.textColor = textColour == undefined ? textColour = 15 : textColour;
-
-        this.calculateSlices();
-        this.draw();
-    }
-
-    update(drawCursor = true) {
-        this.draw();
-        if (drawCursor) this.drawCursorRow();
-    }
-
-    protected calculateSlices() {
-        this.nineSlice = [];
-        for (let i = 0; i < 9; i++) {
-            this.nineSlice.push(image.create(this.unit, this.unit))
-            this.drawPartial(this.nineSlice[i], 0, 0, i, this.unit, this.unit);
+        constructor(x: number, y: number, x2: number, y2: number, time: number, frame: Image) {
+            this.resize(x, y, x2, y2, time, frame);
         }
-    }
 
-    protected draw() {
-        let edgeX = this.image.width - this.unit;
-        let edgeY = this.image.height - this.unit;
+        resize(x: number, y: number, x2: number, y2: number, time: number, frame: Image) {
+            this.x1 = Math.round(x); this.y1 = Math.round(y);
+            this.x2 = Math.round(x2); this.y2 = Math.round(y2);
+            let width = this.x2 - this.x1;
+            let height = this.y2 - this.y1;
+            this.frame = frame || assets.image`defaultFrame`;
+            this.unit = Math.floor(this.frame.width / 3);
+            this.columns = Math.floor(width / this.unit);
+            this.rows = Math.floor(height / this.unit);
+            this.image = image.create(this.x1 + width, this.y1 + height);
 
-        for (let c = 2; c < this.columns; c++) {
-            this.image.drawTransparentImage(this.nineSlice[1], this.x + ((c - 1) * this.unit), this.y);
-            this.image.drawTransparentImage(this.nineSlice[7], this.x + ((c - 1) * this.unit),  edgeY);
+            this.calculateSlices();
+            this.draw();
         }
-        this.drawPartial(this.image, this.x + ((this.columns - 1) * this.unit),
-            this.y, 1, this.image.width - ((this.columns * this.unit) + this.x), this.unit);
-        this.drawPartial(this.image, this.x + ((this.columns - 1) * this.unit),
-            edgeY, 7, this.image.width - ((this.columns * this.unit) + this.x), this.unit);
 
-        for (let r = 2; r < this.rows; r++) {
-            this.image.drawTransparentImage(this.nineSlice[3], this.x, this.y + ((r - 1) * this.unit));
-            this.image.drawTransparentImage(this.nineSlice[5], edgeX, this.y + ((r - 1) * this.unit));
+        update(drawCursor = true) {
+            this.draw();
         }
-        this.drawPartial(this.image, this.x, this.y + ((this.rows - 1) * this.unit),
-            3, this.unit, this.image.height - ((this.rows * this.unit) + this.y));
-        this.drawPartial(this.image, edgeX, this.y + ((this.rows - 1) * this.unit),
-            5, this.unit, this.image.height - ((this.rows * this.unit) + this.y));
 
-        //Edges
-        this.image.drawTransparentImage(this.nineSlice[0], this.x, this.y);
-        this.image.drawTransparentImage(this.nineSlice[2], edgeX, this.y);
-        this.image.drawTransparentImage(this.nineSlice[6], this.x, edgeY);
-        this.image.drawTransparentImage(this.nineSlice[8], edgeX, edgeY);
-        
-        this.image.fillRect(
-            this.unit + this.x, this.unit + this.y, edgeX - this.x -this.unit, edgeY - this.y - this.unit,
-            this.frame.getPixel(this.unit, this.unit));
-    }
+        protected calculateSlices() {
+            this.nineSlice = [];
+            for (let i = 0; i < 9; i++) {
+                this.nineSlice.push(image.create(this.unit, this.unit))
+                this.drawPartial(this.nineSlice[i], 0, 0, i, this.unit, this.unit);
+            }
+        }
 
-    protected drawPartial(image: Image, x: number, y: number, 
-     index: number, width: number = 0, height: number = 0) {
-        const xf = (index % 3) * this.unit;
-        const yf = Math.idiv(index, 3) * this.unit;
+        draw() {
+            let edgeX = this.x2 - this.unit;
+            let edgeY = this.y2 - this.unit;
+
+            for (let c = 2; c < this.columns; c++) {
+                this.image.drawTransparentImage(this.nineSlice[1], this.x1 + ((c - 1) * this.unit), this.y1);
+                this.image.drawTransparentImage(this.nineSlice[7], this.x1 + ((c - 1) * this.unit), edgeY);
+            }
+            this.drawPartial(this.image, this.x1 + ((this.columns - 1) * this.unit),
+                this.y1, 1, this.image.width - ((this.columns * this.unit) + this.x1), this.unit);
+            this.drawPartial(this.image, this.x1 + ((this.columns - 1) * this.unit),
+                edgeY, 7, this.image.width - ((this.columns * this.unit) + this.x1), this.unit);
+
+            for (let r = 2; r < this.rows; r++) {
+                this.image.drawTransparentImage(this.nineSlice[3], this.x1, this.y1 + ((r - 1) * this.unit));
+                this.image.drawTransparentImage(this.nineSlice[5], edgeX, this.y1 + ((r - 1) * this.unit));
+            }
+            this.drawPartial(this.image, this.x1, this.y1 + ((this.rows - 1) * this.unit),
+                3, this.unit, this.image.height - ((this.rows * this.unit) + this.y1));
+            this.drawPartial(this.image, edgeX, this.y1 + ((this.rows - 1) * this.unit),
+                5, this.unit, this.image.height - ((this.rows * this.unit) + this.y1));
+
+            //Edges
+            this.image.drawTransparentImage(this.nineSlice[0], this.x1, this.y1);
+            this.image.drawTransparentImage(this.nineSlice[2], edgeX, this.y1);
+            this.image.drawTransparentImage(this.nineSlice[6], this.x1, edgeY);
+            this.image.drawTransparentImage(this.nineSlice[8], edgeX, edgeY);
+
+            this.image.fillRect(
+                this.unit + this.x1, this.unit + this.y1, edgeX - this.x1 - this.unit, edgeY - this.y1 - this.unit,
+                this.frame.getPixel(this.unit, this.unit));
+        }
+
+        protected drawPartial(image: Image, x: number, y: number,
+            index: number, width: number = 0, height: number = 0) {
+            const xf = (index % 3) * this.unit;
+            const yf = Math.idiv(index, 3) * this.unit;
 
 
-        for (let e = 0; e < width; e++) {
-            for (let t = 0; t < height; t++) {
-                image.setPixel(
-                    x + e,
-                    y + t,
-                    this.frame.getPixel(xf + e, yf + t));
+            for (let e = 0; e < width; e++) {
+                for (let t = 0; t < height; t++) {
+                    image.setPixel(
+                        x + e,
+                        y + t,
+                        this.frame.getPixel(xf + e, yf + t));
+                }
             }
         }
     }
 
-    protected drawCursorRow() {
-        let offset = 0;
-        if (this.cursorCount > 40) {
-            offset = 1;
+    export class NineSliceBoxTwo {
+        image: Image;
+        frame: Image;
+        nineSlice: Image[];
+
+        pt1: number[];
+        pt2: number[];
+        ptTarget1: number[];
+        ptTarget2: number[];
+        unit: number;
+        rows: number;
+        columns: number;
+        lerpProgress: number
+
+        constructor(x: number, y: number, x2: number, y2: number, time: number, frame: Image) {
+            this.resize(x, y, x2, y2, time, frame);
         }
 
-        this.cursorCount = (this.cursorCount + 1) % 80;
+        resize(x1: number, y1: number, x2: number, y2: number, time?: number, frame?: Image) {
+            this.ptTarget1 = [Math.floor(x1), Math.floor(y1)];
+            this.ptTarget2 = [Math.floor(x2), Math.floor(y2)];
+            this.frame = frame || assets.image`defaultFrame`;
+            this.unit = Math.floor(this.frame.width / 3);
+            this.pt1 = [x2 / 2, y2 / 2]; this.pt2 = [x2 / 2, y2 / 2];
+            let width = this.pt2[0] - this.pt1[0];
+            let height = this.pt2[1] - this.pt1[1];
+            this.columns = Math.floor(width / this.unit);
+            this.rows = Math.floor(height / this.unit);
+            this.image = image.create(x1 + width, y1 + height);
+            this.calculateSlices();
+            this.lerpProgress = 0;
+            this.draw();
+        }
 
-        this.image.drawTransparentImage(
-            this.cursor,
-            this.innerLeft + this.textAreaWidth() + this.unit + offset - this.cursor.width,
-            this.innerTop + this.unit + this.textAreaHeight() + 1 - this.cursorRowHeight()
-        )
+        update() {
+            this.updateLerp(); 
+            let width = this.pt2[0] - this.pt1[0];
+            let height = this.pt2[1] - this.pt1[1];
+            this.columns = Math.floor(width / this.unit);
+            this.rows = Math.floor(height / this.unit);
+            this.image = image.create(this.pt1[0] + width, this.pt1[1] + height);
+            this.draw();
+        }
+
+        updateLerp() {
+            this.lerpProgress = (1 - this.lerpProgress) / 10;
+            this.pt1[0] = lerp(this.pt1[0], this.ptTarget1[0], this.lerpProgress);
+            this.pt1[1] = lerp(this.pt1[1], this.ptTarget1[1], this.lerpProgress);
+            this.pt2[0] = lerp(this.pt2[0], this.ptTarget2[0], this.lerpProgress);
+            this.pt2[1] = lerp(this.pt2[1], this.ptTarget2[1], this.lerpProgress);
+        }
+
+        protected calculateSlices() {
+            this.nineSlice = [];
+            for (let i = 0; i < 9; i++) {
+                this.nineSlice.push(image.create(this.unit, this.unit))
+                this.drawPartial(this.nineSlice[i], 0, 0, i, this.unit, this.unit);
+            }
+        }
+
+        draw() {
+            let x1 = Math.floor(this.pt1[0]); let x2 = Math.floor(this.pt2[0]);
+            let y1 = Math.floor(this.pt1[1]); let y2 = Math.floor(this.pt2[1]);
+            let edgeX = x2 - this.unit;
+            let edgeY = y2 - this.unit;
+
+            for (let c = 2; c < this.columns; c++) {
+                this.image.drawTransparentImage(this.nineSlice[1], x1 + ((c - 1) * this.unit), y1);
+                this.image.drawTransparentImage(this.nineSlice[7], x1 + ((c - 1) * this.unit), edgeY);
+            }
+            this.drawPartial(this.image, x1 + ((this.columns - 1) * this.unit),
+                y1, 1, this.image.width - ((this.columns * this.unit) + x1), this.unit);
+            this.drawPartial(this.image, x1 + ((this.columns - 1) * this.unit),
+                edgeY, 7, this.image.width - ((this.columns * this.unit) + x1), this.unit);
+
+            for (let r = 2; r < this.rows; r++) {
+                this.image.drawTransparentImage(this.nineSlice[3], x1, y1 + ((r - 1) * this.unit));
+                this.image.drawTransparentImage(this.nineSlice[5], edgeX, y1 + ((r - 1) * this.unit));
+            }
+            this.drawPartial(this.image, x1, y1 + ((this.rows - 1) * this.unit),
+                3, this.unit, this.image.height - ((this.rows * this.unit) + y1));
+            this.drawPartial(this.image, edgeX, y1 + ((this.rows - 1) * this.unit),
+                5, this.unit, this.image.height - ((this.rows * this.unit) + y1));
+
+            //Edges
+            this.image.drawTransparentImage(this.nineSlice[0], x1, y1);
+            this.image.drawTransparentImage(this.nineSlice[2], edgeX, y1);
+            this.image.drawTransparentImage(this.nineSlice[6], x1, edgeY);
+            this.image.drawTransparentImage(this.nineSlice[8], edgeX, edgeY);
+
+            this.image.fillRect(
+                this.unit + x1, this.unit + y1, edgeX - x1 - this.unit, edgeY - y1 - this.unit,
+                this.frame.getPixel(this.unit, this.unit));
+        }
+
+        protected drawPartial(image: Image, x: number, y: number,
+            index: number, width: number = 0, height: number = 0) {
+            const xf = (index % 3) * this.unit;
+            const yf = Math.idiv(index, 3) * this.unit;
+
+
+            for (let e = 0; e < width; e++) {
+                for (let t = 0; t < height; t++) {
+                    image.setPixel(
+                        x + e,
+                        y + t,
+                        this.frame.getPixel(xf + e, yf + t));
+                }
+            }
+        }
+
+        setFrame(frame: Image) {
+            this.frame = frame;
+            this.calculateSlices();
+            this.draw();
+        }
     }
 
-    //
-    protected cursorRowHeight() {
-        return this.cursor.height + 1;
-    }
+    export function create(x1: number, y1: number, x2: number, y2: number,
+        time?: number, frame?: Image) {
+        let box = new NineSliceBoxTwo(x1, y1, x2, y2,
+            time || 0, frame || assets.image`defaultFrame`);
 
-    protected rowHeight() {
-        return this.font.charHeight + 1;
-    }
-
-    protected textAreaWidth() {
-        return this.image.width - ((this.innerLeft + Math.min(this.unit, 12)) << 1) - 2;
-    }
-
-    protected textAreaHeight() {
-        return this.image.height - ((this.innerTop + Math.min(this.unit, 12)) << 1) - 1;
+        return(box);
     }
 }
-class Dialog extends NineSliceBox {
+
+/*class Dialog extends NineSliceBox {
     chunks: string[][];
     chunkIndex: number;
 
@@ -276,7 +362,7 @@ class Dialog extends NineSliceBox {
             }
         }
 
-         currentPage.push(this.formatLine(text.substr(lastBreak, text.length - lastBreak)));
+        currentPage.push(this.formatLine(text.substr(lastBreak, text.length - lastBreak)));
 
         if (currentPage.length > 1 || currentPage[0] !== "") {
             result.push(currentPage);
@@ -300,23 +386,94 @@ class Dialog extends NineSliceBox {
             charCode == 12290 ||
             charCode == 65292;
     }
+
+    protected drawCursorRow() {
+        let offset = 0;
+        if (this.cursorCount > 40) {
+            offset = 1;
+        }
+
+        this.cursorCount = (this.cursorCount + 1) % 80;
+
+        this.image.drawTransparentImage(
+            this.cursor,
+            this.innerLeft + this.textAreaWidth() + this.unit + offset - this.cursor.width,
+            this.innerTop + this.unit + this.textAreaHeight() + 1 - this.cursorRowHeight()
+        )
+    }
+
+    //
+    protected cursorRowHeight() {
+        return this.cursor.height + 1;
+    }
+
+    protected rowHeight() {
+        return this.font.charHeight + 1;
+    }
+
+    protected textAreaWidth() {
+        return this.image.width - ((this.innerLeft + Math.min(this.unit, 12)) << 1) - 2;
+    }
+
+    protected textAreaHeight() {
+        return this.image.height - ((this.innerTop + Math.min(this.unit, 12)) << 1) - 1;
+    }
+}*/
+
+
+function createTextBox() {
+
 }
 
-let dialog = new Dialog(0, 0, 100, 100, assets.image`myImage`);
-let nineSlice = new NineSliceBox(0, 0, 100, 100, assets.image`myImage`);
+function lerp(startValue: number, endValue: number, pct: number) {
+    return (startValue + (endValue - startValue) * pct);
+}
 
+let dialog = nineSlice.create(0, 0, 150, 120, 1, assets.image`myImage1`);
+//let nineSlice = new NineSliceBox(0, 0, 100, 100, assets.image`myImage`);
 
 let dem = [
-0,
-0,
-20,
-20
+    0,
+    0,
+    20,
+    20
 ]
-let pressed = [0, 0]
 dialog.update();
-dialog.setText("a a a a a a a a a a a a a a a");
+
+/*let lerpProgress = 0;
+let x1 = 160 / 2;
+let y1 = 120 - 70;
+let x2 = 160 / 2;
+let y2 = 120;
+let x1Target = 0;
+let x2Target = 160;*/
+
 scene.createRenderable(0, (target: Image, camera: scene.Camera) => {
-    pressed = [Math.sign(controller.dx()) * pressed[0], Math.sign(controller.dx()) * pressed[1]];
+    /*if (controller.A.isPressed()) {
+        lerpProgress = 0;
+        x1 = 160 / 2;
+        y1 = 120 - 70;
+        x2 = 160 / 2;
+        y2 = 120;
+        x1Target = 0;
+        x2Target = 160;
+    }
+    lerpProgress = (1 - lerpProgress) / 10;
+    x1 = lerp(x1, x1Target, lerpProgress);
+    x2 = lerp(x2, x2Target, lerpProgress);*/
+
+    //dialog.resize(x1, y1, x2, y2, 1, assets.image`myImage2`);
+     if (controller.A.isPressed()) {
+         dialog.resize(20, 10, 50, 35, 1, assets.image`myImage1`)
+    }
+    dialog.update();
+    target.drawTransparentImage(dialog.image, 0, 0);
+});
+
+
+
+
+/*scene.createRenderable(0, (target: Image, camera: scene.Camera) => {
     if (controller.A.isPressed()) {
         dem[0] += Math.floor(controller.dx());
         dem[1] += Math.floor(controller.dy());
@@ -325,9 +482,9 @@ scene.createRenderable(0, (target: Image, camera: scene.Camera) => {
         dem[3] += Math.floor(controller.dy());
     }
     //nineSlice.resize(dem[0], dem[1],assets.image`myImage`, undefined);
-    dialog.setText("Hello There!\n>Hello!<");
+    //dialog.setText("Hello There!\n>Hello!<");
     dialog.resize(dem[0], dem[1], dem[2], dem[3],assets.image`myImage2`);
     dialog.update(false);
     target.drawTransparentImage(dialog.image, 0, 0);
-    //game.showLongText
-});
+    console.log([dialog.image.width, dialog.image.height, dem[3]]);
+});*/
