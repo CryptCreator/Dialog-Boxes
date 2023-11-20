@@ -12,13 +12,14 @@
         "tilemap.g.jres",
         "tilemap.g.ts",
         "images.g.jres",
-        "images.g.ts"
+        "images.g.ts",
+        "nineslice.ts"
     ],
     "testFiles": [
         "test.ts"
     ],
     "targetVersions": {
-        "target": "1.12.41",
+        "target": "1.12.46",
         "targetId": "arcade"
     },
     "supportedTargets": [

@@ -1,102 +1,5 @@
-scene.setBackgroundColor(0);
-
 namespace nineSlice {
     export class NineSliceBox {
-        image: Image;
-        frame: Image;
-        nineSlice: Image[];
-
-        x1: number;
-        y1: number;
-        x2: number;
-        y2: number;
-        unit: number;
-        rows: number;
-        columns: number;
-        lerpProgress: number
-
-        constructor(x: number, y: number, x2: number, y2: number, time: number, frame: Image) {
-            this.resize(x, y, x2, y2, time, frame);
-        }
-
-        resize(x: number, y: number, x2: number, y2: number, time: number, frame: Image) {
-            this.x1 = Math.round(x); this.y1 = Math.round(y);
-            this.x2 = Math.round(x2); this.y2 = Math.round(y2);
-            let width = this.x2 - this.x1;
-            let height = this.y2 - this.y1;
-            this.frame = frame || assets.image`defaultFrame`;
-            this.unit = Math.floor(this.frame.width / 3);
-            this.columns = Math.floor(width / this.unit);
-            this.rows = Math.floor(height / this.unit);
-            this.image = image.create(this.x1 + width, this.y1 + height);
-
-            this.calculateSlices();
-            this.draw();
-        }
-
-        update(drawCursor = true) {
-            this.draw();
-        }
-
-        protected calculateSlices() {
-            this.nineSlice = [];
-            for (let i = 0; i < 9; i++) {
-                this.nineSlice.push(image.create(this.unit, this.unit))
-                this.drawPartial(this.nineSlice[i], 0, 0, i, this.unit, this.unit);
-            }
-        }
-
-        draw() {
-            let edgeX = this.x2 - this.unit;
-            let edgeY = this.y2 - this.unit;
-
-            for (let c = 2; c < this.columns; c++) {
-                this.image.drawTransparentImage(this.nineSlice[1], this.x1 + ((c - 1) * this.unit), this.y1);
-                this.image.drawTransparentImage(this.nineSlice[7], this.x1 + ((c - 1) * this.unit), edgeY);
-            }
-            this.drawPartial(this.image, this.x1 + ((this.columns - 1) * this.unit),
-                this.y1, 1, this.image.width - ((this.columns * this.unit) + this.x1), this.unit);
-            this.drawPartial(this.image, this.x1 + ((this.columns - 1) * this.unit),
-                edgeY, 7, this.image.width - ((this.columns * this.unit) + this.x1), this.unit);
-
-            for (let r = 2; r < this.rows; r++) {
-                this.image.drawTransparentImage(this.nineSlice[3], this.x1, this.y1 + ((r - 1) * this.unit));
-                this.image.drawTransparentImage(this.nineSlice[5], edgeX, this.y1 + ((r - 1) * this.unit));
-            }
-            this.drawPartial(this.image, this.x1, this.y1 + ((this.rows - 1) * this.unit),
-                3, this.unit, this.image.height - ((this.rows * this.unit) + this.y1));
-            this.drawPartial(this.image, edgeX, this.y1 + ((this.rows - 1) * this.unit),
-                5, this.unit, this.image.height - ((this.rows * this.unit) + this.y1));
-
-            //Edges
-            this.image.drawTransparentImage(this.nineSlice[0], this.x1, this.y1);
-            this.image.drawTransparentImage(this.nineSlice[2], edgeX, this.y1);
-            this.image.drawTransparentImage(this.nineSlice[6], this.x1, edgeY);
-            this.image.drawTransparentImage(this.nineSlice[8], edgeX, edgeY);
-
-            this.image.fillRect(
-                this.unit + this.x1, this.unit + this.y1, edgeX - this.x1 - this.unit, edgeY - this.y1 - this.unit,
-                this.frame.getPixel(this.unit, this.unit));
-        }
-
-        protected drawPartial(image: Image, x: number, y: number,
-            index: number, width: number = 0, height: number = 0) {
-            const xf = (index % 3) * this.unit;
-            const yf = Math.idiv(index, 3) * this.unit;
-
-
-            for (let e = 0; e < width; e++) {
-                for (let t = 0; t < height; t++) {
-                    image.setPixel(
-                        x + e,
-                        y + t,
-                        this.frame.getPixel(xf + e, yf + t));
-                }
-            }
-        }
-    }
-
-    export class NineSliceBoxTwo {
         image: Image;
         frame: Image;
         nineSlice: Image[];
@@ -110,8 +13,12 @@ namespace nineSlice {
         columns: number;
         lerpProgress: number
 
-        constructor(x: number, y: number, x2: number, y2: number, time: number, frame: Image) {
+        constructor(align: Function, x: number, y: number, x2: number, y2: number, time: number, frame: Image) {
+            let unit = Math.floor(frame.width / 3);
+            let points: number[][] = align(unit, x, y, x2, y2);
+            this.pt1 = points[0]; this.pt2 = points[1];
             this.resize(x, y, x2, y2, time, frame);
+            console.log([this.pt1[0], this.pt1[1], this.pt2[0], this.pt2[1]]);
         }
 
         resize(x1: number, y1: number, x2: number, y2: number, time?: number, frame?: Image) {
@@ -119,7 +26,6 @@ namespace nineSlice {
             this.ptTarget2 = [Math.floor(x2), Math.floor(y2)];
             this.frame = frame || assets.image`defaultFrame`;
             this.unit = Math.floor(this.frame.width / 3);
-            this.pt1 = [x2 / 2, y2 / 2]; this.pt2 = [x2 / 2, y2 / 2];
             let width = this.pt2[0] - this.pt1[0];
             let height = this.pt2[1] - this.pt1[1];
             this.columns = Math.floor(width / this.unit);
@@ -131,21 +37,35 @@ namespace nineSlice {
         }
 
         update() {
-            this.updateLerp(); 
-            let width = this.pt2[0] - this.pt1[0];
-            let height = this.pt2[1] - this.pt1[1];
-            this.columns = Math.floor(width / this.unit);
-            this.rows = Math.floor(height / this.unit);
-            this.image = image.create(this.pt1[0] + width, this.pt1[1] + height);
-            this.draw();
+            if (this.lerpProgress == null || this.updateLerp()) {
+                let width = this.pt2[0] - this.pt1[0];
+                let height = this.pt2[1] - this.pt1[1];
+                this.columns = Math.floor(width / this.unit);
+                this.rows = Math.floor(height / this.unit);
+                this.image = image.create(Math.round(this.pt1[0] + width),
+                    Math.round(this.pt1[1] + height));
+                this.draw();
+                //console.log("draw!")
+            }
         }
 
         updateLerp() {
-            this.lerpProgress = (1 - this.lerpProgress) / 10;
+            this.lerpProgress += (1 - this.lerpProgress) / 150;
             this.pt1[0] = lerp(this.pt1[0], this.ptTarget1[0], this.lerpProgress);
             this.pt1[1] = lerp(this.pt1[1], this.ptTarget1[1], this.lerpProgress);
             this.pt2[0] = lerp(this.pt2[0], this.ptTarget2[0], this.lerpProgress);
             this.pt2[1] = lerp(this.pt2[1], this.ptTarget2[1], this.lerpProgress);
+            console.log([this.ptTarget1[0] - this.pt1[0], this.ptTarget1[1] - this.pt1[1],
+                this.ptTarget2[0] - this.pt2[0], this.ptTarget2[0] - this.pt2[0]]);
+
+            if ((Math.abs(this.ptTarget1[0] - this.pt1[0]) < .5) && (Math.abs(this.ptTarget1[1] - this.pt1[1]) < .5) &&
+                (Math.abs(this.ptTarget2[0] - this.pt2[0]) < .5) && (Math.abs(this.ptTarget2[1] - this.pt2[1]) < .5)) {
+                this.lerpProgress = null;
+                    this.pt1[0] = this.ptTarget1[0]; this.pt1[1] = this.ptTarget1[1];
+                    this.pt2[0] = this.ptTarget2[0]; this.pt2[1] = this.ptTarget2[1];
+                    return(false);
+                } else return(true);
+
         }
 
         protected calculateSlices() {
@@ -157,8 +77,8 @@ namespace nineSlice {
         }
 
         draw() {
-            let x1 = Math.floor(this.pt1[0]); let x2 = Math.floor(this.pt2[0]);
-            let y1 = Math.floor(this.pt1[1]); let y2 = Math.floor(this.pt2[1]);
+            let x1 = Math.round(this.pt1[0]); let x2 = Math.round(this.pt2[0]);
+            let y1 = Math.round(this.pt1[1]); let y2 = Math.round(this.pt2[1]);
             let edgeX = x2 - this.unit;
             let edgeY = y2 - this.unit;
 
@@ -214,12 +134,51 @@ namespace nineSlice {
         }
     }
 
-    export function create(x1: number, y1: number, x2: number, y2: number,
+    export const Align = {
+        topLeft: (unit: number, x: number, y: number, x2: number, y2: number): number[][] => {
+            return ([[x, y], [unit, unit]]);
+        },
+        
+        top: (unit: number, x: number, y: number, x2: number, y2: number): number[][] => {
+            return ([[x, 0], [x2, unit]]);
+        },
+
+        left: (unit: number, x: number, y: number, x2: number, y2: number): number[][] => {
+            return ([[x, y], [unit, y2]]);
+        },
+
+        middle: (unit: number, x: number, y: number, x2: number, y2: number): number[][] => {
+            return ([[(x2 / 2) - unit, (y2 / 2) - unit], [(x2 / 2) + unit, (y2 / 2) + unit]])
+        },
+    }
+
+    export function create(align: Function, x1: number, y1: number, x2: number, y2: number,
         time?: number, frame?: Image) {
-        let box = new NineSliceBoxTwo(x1, y1, x2, y2,
+        let box = new NineSliceBox(align, x1, y1, x2, y2,
             time || 0, frame || assets.image`defaultFrame`);
 
+        scene.createRenderable(0, (target: Image, camera: scene.Camera) => {
+            if (controller.A.isPressed()) {
+                box.resize(20, 10, 50, 35, 1, assets.image`myImage1`)
+            }
+            box.update();
+            screen.drawTransparentImage(box.image, 0, 0);
+        });
+
         return(box);
+    }
+
+    export function setFrame(box: NineSliceBox, frame: Image) {
+        box.setFrame(frame);
+    }
+
+    export function resize(box: NineSliceBox, x1: number, y1: number, 
+        x2: number, y2: number, time: number, frame: Image) {
+        box.resize(x1, y2, x2, y2, time, frame);
+    }
+
+    function lerp(startValue: number, endValue: number, pct: number) {
+        return (startValue + (endValue - startValue) * pct);
     }
 }
 
@@ -421,15 +380,8 @@ namespace nineSlice {
 }*/
 
 
-function createTextBox() {
 
-}
-
-function lerp(startValue: number, endValue: number, pct: number) {
-    return (startValue + (endValue - startValue) * pct);
-}
-
-let dialog = nineSlice.create(0, 0, 150, 120, 1, assets.image`myImage1`);
+let dialog = nineSlice.create(nineSlice.Align.left, 0, 0, 150, 120, 1, assets.image`myImage1`);
 //let nineSlice = new NineSliceBox(0, 0, 100, 100, assets.image`myImage`);
 
 let dem = [
@@ -463,11 +415,7 @@ scene.createRenderable(0, (target: Image, camera: scene.Camera) => {
     x2 = lerp(x2, x2Target, lerpProgress);*/
 
     //dialog.resize(x1, y1, x2, y2, 1, assets.image`myImage2`);
-     if (controller.A.isPressed()) {
-         dialog.resize(20, 10, 50, 35, 1, assets.image`myImage1`)
-    }
-    dialog.update();
-    target.drawTransparentImage(dialog.image, 0, 0);
+
 });
 
 

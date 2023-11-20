@@ -186,6 +186,12 @@ ddddddddddddddddddddddddd1ddddddddddd1dddd111ddd
 .dddddddddddddddddddddddddddddddddddddddddddddd.
 ..dddddddddddddddddddddddddddddddddddddddddddd..
 `;
+            case "image7":
+            case "heartContainer":return img`
+3 3 3 
+3 1 3 
+3 3 3 
+`;
         }
         return null;
     })

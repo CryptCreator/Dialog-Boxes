@@ -29,6 +29,11 @@
         "mimeType": "image/x-mkcd-f4",
         "displayName": "myImage2"
     },
+    "image7": {
+        "data": "hwQDAAMAAAAzAwAAEwMAADMDAAA=",
+        "mimeType": "image/x-mkcd-f4",
+        "displayName": "heartContainer"
+    },
     "anim1": {
         "namespace": "myAnimations",
         "id": "anim1",
